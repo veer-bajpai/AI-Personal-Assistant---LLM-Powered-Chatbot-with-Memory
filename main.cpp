@@ -599,7 +599,7 @@ class OllamaClient {
 
 public:
     std::string embedModel = "nomic-embed-text";
-    std::string genModel   = "llama3.2";
+    std::string genModel   = "llama3.2:1b";
 
     OllamaClient(const std::string& h = "127.0.0.1", int p = 11434)
         : host(h), port(p) {}
@@ -773,7 +773,7 @@ int main() {
     // Check Ollama at startup (non-fatal)
     bool ollamaUp = ollama.isAvailable();
     std::cout << "=== VectorDB Engine ===" << std::endl;
-    std::cout << "http://localhost:8080" << std::endl;
+    std::cout << "http://localhost:8081" << std::endl;
     std::cout << db.size() << " demo vectors | " << DIMS << " dims | HNSW+KD-Tree+BruteForce" << std::endl;
     std::cout << "Ollama: " << (ollamaUp ? "ONLINE" : "OFFLINE (install from ollama.com)") << std::endl;
     if (ollamaUp) std::cout << "  embed model: " << ollama.embedModel
@@ -919,7 +919,7 @@ int main() {
                 res.set_content(
                     "{\"error\":\"Ollama unavailable. "
                     "Install from https://ollama.com then run: "
-                    "ollama pull nomic-embed-text && ollama pull llama3.2\"}",
+                    "ollama pull nomic-embed-text && ollama pull llama3.2:1b\"}",
                     "application/json");
                 return;
             }
@@ -1084,6 +1084,6 @@ int main() {
             "text/html");
     });
 
-    svr.listen("0.0.0.0", 8080);
+    svr.listen("0.0.0.0", std::stoi(std::getenv("PORT") ? std::getenv("PORT") : "8081"));
     return 0;
 }

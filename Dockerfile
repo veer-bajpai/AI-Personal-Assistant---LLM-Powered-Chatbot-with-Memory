@@ -14,5 +14,5 @@ RUN g++ -std=c++17 -O2 main.cpp -o db -lpthread -lssl -lcrypto
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
-EXPOSE 8080
+EXPOSE 8081
 CMD ["/app/start.sh"]
