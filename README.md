@@ -1,4 +1,4 @@
-# FRIDAY — Local-First AI Developer & Knowledge Assistant
+# FRIDAY: Local-First AI Developer & Knowledge Assistant
 
 <p align="center">
   <strong>F.R.I.D.A.Y.</strong><br/>
