@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js" alt="Next.js"/>
+   <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" alt="Next.js"/>
   <img src="https://img.shields.io/badge/React-TypeScript-blue?style=for-the-badge&logo=react" alt="React"/>
   <img src="https://img.shields.io/badge/FastAPI-Python-009688?style=for-the-badge&logo=fastapi" alt="FastAPI"/>
   <img src="https://img.shields.io/badge/Ollama-Local%20AI-white?style=for-the-badge" alt="Ollama"/>
@@ -26,17 +26,27 @@
 
 Instead of treating an AI assistant as only a chat window, Friday is designed as a complete knowledge workspace where users can:
 
-* 💬 Chat with a local AI assistant
-* 📄 Upload and manage documents
-* 🔎 Search information semantically
-* 🧠 Retrieve relevant document context
-* 📚 Ground AI responses in user-provided sources
-* 📊 Inspect assistant activity
-* 🕘 Access conversation history
-* ⚙️ Configure retrieval and model settings
-* 🔒 Keep sensitive knowledge inside the local environment
+- 💬 Chat with a local AI assistant
+- 📄 Upload and manage documents
+- 🔎 Search information semantically
+- 🧠 Retrieve relevant document context
+- 📚 Ground AI responses in user-provided sources
+- 📊 Inspect assistant activity
+- 🕘 Access conversation history
+- ⚙️ Configure retrieval and model settings
+- 🔒 Keep sensitive knowledge inside the local environment
 
 The application is built around a **frontend → API → retrieval → model** architecture, allowing the user interface and AI engine to evolve independently.
+
+## Current local deployment
+
+The supported local setup runs three services:
+
+- Next.js frontend at `http://localhost:3000`
+- FastAPI backend at `http://localhost:8000`
+- Ollama at `http://localhost:11434` when local AI is enabled
+
+The frontend and backend can be started directly from PowerShell, or together with Docker Compose. SQLite data and uploaded files remain under `data/`, which is ignored by Git.
 
 ---
 
@@ -48,14 +58,14 @@ Friday provides a modern conversational interface for interacting with the assis
 
 Features include:
 
-* Real-time chat composer
-* User and assistant message states
-* Conversation context
-* Source references
-* Model information
-* Retrieval configuration
-* Responsive desktop/mobile interface
-* Local assistant status
+- Real-time chat composer
+- User and assistant message states
+- Conversation context
+- Source references
+- Model information
+- Retrieval configuration
+- Responsive desktop/mobile interface
+- Local assistant status
 
 The frontend communicates with the FastAPI service through REST endpoints.
 
@@ -191,6 +201,10 @@ The backend exposes a chat boundary with configurable retrieval count (`k`) and 
                     │  /api/documents/upload       │
                     │  /api/search                 │
                     │  /api/chat                   │
+                    │  /api/chat/stream            │
+                    │  /api/conversations          │
+                    │  /api/collections            │
+                    │  /api/settings               │
                     └──────────────┬───────────────┘
                                    │
                  ┌─────────────────┼─────────────────┐
@@ -228,35 +242,20 @@ The backend exposes a chat boundary with configurable retrieval count (`k`) and 
 
 # 🔬 Retrieval Architecture
 
-Friday's retrieval layer is designed around vector search and supports the concept of comparing multiple retrieval strategies.
+Friday's current retrieval layer ranks indexed chunks with a lightweight lexical scorer. Embeddings are generated during ingestion when Ollama is available and are stored with the chunk for future vector retrieval work.
 
 ```text
                          Query
-                           │
-                           ▼
-                  ┌─────────────────┐
-                  │ Query Embedding │
-                  └────────┬────────┘
                            │
                            ▼
               ┌─────────────────────────┐
               │      Retrieval Layer    │
               └────────────┬────────────┘
                            │
-          ┌────────────────┼────────────────┐
-          │                │                │
-          ▼                ▼                ▼
-      ┌───────┐        ┌─────────┐     ┌──────────┐
-      │ HNSW  │        │ KD-Tree │     │ Brute    │
-      │ Index │        │ Index   │     │ Force    │
-      └───┬───┘        └────┬────┘     └────┬─────┘
-          │                 │               │
-          └─────────────────┼───────────────┘
-                            │
-                            ▼
-                  ┌──────────────────┐
-                  │ Similarity Ranking│
-                  └────────┬─────────┘
+                           ▼
+                 ┌──────────────────┐
+                 │ Lexical Ranking  │
+                 └────────┬─────────┘
                            │
                            ▼
                     Top-K Chunks
@@ -268,7 +267,7 @@ Friday's retrieval layer is designed around vector search and supports the conce
                          LLM
 ```
 
-The product UI exposes HNSW as the active retrieval index and cosine similarity as the current distance configuration.
+The product UI exposes retrieval count and maximum distance settings. The current backend uses lexical ranking; stored embeddings provide the extension point for a future vector index.
 
 ---
 
@@ -311,11 +310,11 @@ This separation makes it possible to replace individual components without rebui
 
 The frontend is built with:
 
-* **Next.js**
-* **React**
-* **TypeScript**
-* **Lucide React**
-* **CSS**
+- **Next.js**
+- **React**
+- **TypeScript**
+- **Lucide React**
+- **CSS**
 
 The main workspace currently provides navigation for:
 
@@ -341,15 +340,15 @@ The main workspace currently provides navigation for:
 
 The main interface also contains:
 
-* Conversation workspace
-* Context panel
-* Attached sources
-* Model selector
-* Retrieval settings
-* Document upload surface
-* Responsive mobile navigation
+- Conversation workspace
+- Context panel
+- Attached sources
+- Model selector
+- Retrieval settings
+- Document upload surface
+- Responsive mobile navigation
 
-The current frontend sends chat requests to `NEXT_PUBLIC_API_URL`, defaulting to the local FastAPI server at `http://localhost:8000`.
+The current frontend sends requests to `NEXT_PUBLIC_API_URL`, defaulting to the local FastAPI server at `http://localhost:8000`. Chat uses the streaming endpoint so generated tokens render as they arrive.
 
 ---
 
@@ -359,16 +358,20 @@ The backend is implemented using **FastAPI**.
 
 Current API boundary:
 
-| Endpoint                | Method | Purpose                   |
-| ----------------------- | -----: | ------------------------- |
-| `/health`               |    GET | Service health check      |
-| `/api/status`           |    GET | Model/engine status       |
-| `/api/documents`        |    GET | List documents            |
-| `/api/documents/upload` |   POST | Upload a document         |
-| `/api/search`           |   POST | Semantic-search interface |
-| `/api/chat`             |   POST | RAG chat interface        |
+| Endpoint                |   Method | Purpose                      |
+| ----------------------- | -------: | ---------------------------- |
+| `/health`               |      GET | Service health check         |
+| `/api/status`           |      GET | Model/engine status          |
+| `/api/documents`        |      GET | List documents               |
+| `/api/documents/upload` |     POST | Upload a document            |
+| `/api/search`           |     POST | Search indexed chunks        |
+| `/api/chat`             |     POST | RAG chat interface           |
+| `/api/chat/stream`      |     POST | Streaming chat interface     |
+| `/api/conversations`    | GET/POST | Conversation history         |
+| `/api/collections`      | GET/POST | Document collections         |
+| `/api/settings`         |  GET/PUT | Model and retrieval settings |
 
-The API defines request validation using Pydantic, including limits for question length, retrieval count, search query length, algorithm, and metric.
+The API validates question and search lengths, retrieval counts, collection identifiers, model settings, and upload types with Pydantic and FastAPI.
 
 ---
 
@@ -415,7 +418,7 @@ Architecture:
                Answer
 ```
 
-The repository's setup specifies both models as the intended local RAG stack.
+The repository's defaults specify both models as the intended local RAG stack. If Ollama is unavailable, document ingestion still completes and the API remains usable for non-generation features.
 
 ---
 
@@ -433,6 +436,7 @@ FRIDAY/
 │   │   ├── __init__.py
 │   │   └── main.py
 │   │
+│   ├── Dockerfile
 │   ├── requirements.txt
 │   └── README.md
 │
@@ -454,6 +458,8 @@ FRIDAY/
 │       └── page.tsx
 │
 ├── .env.example
+├── docker-compose.yml
+├── Dockerfile
 ├── .gitignore
 ├── AGENTS.md
 ├── CLAUDE.md
@@ -479,7 +485,7 @@ FRIDAY/
 2. Next.js chat interface
              │
              ▼
-3. POST /api/chat
+3. POST /api/chat/stream
              │
              ▼
 4. FastAPI validates request
@@ -494,7 +500,7 @@ FRIDAY/
 7. LLM generates response
              │
              ▼
-8. API returns answer + sources
+8. API streams tokens and returns sources
              │
              ▼
 9. Friday renders the response
@@ -567,9 +573,8 @@ Available for semantic retrieval
 | Ollama             | Local AI runtime                       |
 | `nomic-embed-text` | Text embeddings                        |
 | `llama3.2`         | Local generation                       |
-| HNSW               | Approximate nearest-neighbor retrieval |
-| KD-Tree            | Alternative retrieval strategy         |
-| Brute Force        | Baseline retrieval                     |
+| SQLite             | Persistent conversations and documents |
+| Lexical ranking    | Current chunk retrieval                |
 
 ## Engineering
 
@@ -589,16 +594,16 @@ Available for semantic retrieval
 
 Install:
 
-* Node.js 20+
-* npm 10+
-* Python 3.11+
-* Git
+- Node.js 20+
+- npm 10+
+- Python 3.11+
+- Git
 
 Optional for local AI:
 
-* Ollama
-* `nomic-embed-text`
-* `llama3.2`
+- Ollama
+- `nomic-embed-text`
+- `llama3.2`
 
 These requirements match the current project setup.
 
@@ -663,10 +668,12 @@ Install dependencies:
 pip install -r backend/requirements.txt
 ```
 
-Start FastAPI:
+Start FastAPI from the backend package directory:
 
 ```powershell
-uvicorn backend.app.main:app --reload --port 8000
+Push-Location backend
+uvicorn app.main:app --reload --port 8000
+Pop-Location
 ```
 
 Backend:
@@ -702,6 +709,28 @@ Open:
 ```text
 http://localhost:3000
 ```
+
+For a production-style local run after `npm run build`, use `npm run start`. The project uses standalone output, so `node .next/standalone/server.js` is the equivalent direct command.
+
+---
+
+# 🐳 Run with Docker Compose
+
+Docker Desktop must be running before starting the full stack:
+
+```powershell
+docker compose up --build
+```
+
+This starts Ollama, FastAPI, and Next.js together. Open `http://localhost:3000`; the API is available at `http://localhost:8000` and Ollama at `http://localhost:11434`.
+
+Stop the stack with:
+
+```powershell
+docker compose down
+```
+
+The Compose volume keeps Ollama models, while the bind-mounted `data/` directory keeps the Friday database and uploads.
 
 ---
 
@@ -858,75 +887,72 @@ This makes responses easier to inspect and validate.
 
 ## Phase 1 — Foundation
 
-* [x] Next.js application
-* [x] Responsive assistant interface
-* [x] Login screen
-* [x] Chat workspace
-* [x] Documents view
-* [x] Activity view
-* [x] History view
-* [x] FastAPI backend
-* [x] Health endpoint
-* [x] Document API
-* [x] Search API boundary
-* [x] Chat API boundary
+- [x] Next.js application
+- [x] Responsive assistant interface
+- [x] Login screen
+- [x] Chat workspace
+- [x] Documents view
+- [x] Activity view
+- [x] History view
+- [x] FastAPI backend
+- [x] Health endpoint
+- [x] Document API
+- [x] Search API boundary
+- [x] Chat API boundary
 
 ## Phase 2 — Retrieval Engine
 
-* [ ] Production document ingestion
-* [ ] PDF extraction
-* [ ] Markdown extraction
-* [ ] Text chunking
-* [ ] Embedding pipeline
-* [ ] Persistent vector store
-* [ ] HNSW implementation
-* [ ] KD-Tree comparison
-* [ ] Brute-force baseline
-* [ ] Cosine similarity
-* [ ] Retrieval benchmarking
+- [x] Document ingestion
+- [x] PDF, Markdown, text, CSV, and image uploads
+- [x] Text chunking
+- [x] Optional Ollama embedding pipeline
+- [x] SQLite persistence
+- [x] Retrieval API
+- [ ] Persistent vector index
+- [ ] Retrieval benchmarking
 
 ## Phase 3 — RAG
 
-* [ ] Context assembly
-* [ ] Top-K retrieval
-* [ ] Prompt construction
-* [ ] Source attribution
-* [ ] Citation rendering
-* [ ] Context-window optimization
-* [ ] Hallucination reduction
+- [x] Context assembly
+- [x] Top-K retrieval
+- [x] Prompt construction
+- [x] Source metadata in API responses
+- [x] Streaming responses
+- [ ] Citation rendering in the UI
+- [ ] Context-window optimization
+- [ ] Hallucination reduction
 
 ## Phase 4 — Personal Memory
 
-* [ ] Conversation persistence
-* [ ] Long-term memory
-* [ ] User preferences
-* [ ] Memory retrieval
-* [ ] Conversation search
-* [ ] Knowledge collections
+- [x] Conversation persistence
+- [ ] Long-term memory
+- [x] Model and retrieval settings
+- [x] Document collections
+- [ ] Conversation search
 
 ## Phase 5 — Developer Agent
 
-* [ ] Repository ingestion
-* [ ] Codebase indexing
-* [ ] Semantic code search
-* [ ] File-aware context
-* [ ] Code understanding
-* [ ] Tool calling
-* [ ] Terminal integration
-* [ ] Git integration
-* [ ] Agentic workflows
+- [ ] Repository ingestion
+- [ ] Codebase indexing
+- [ ] Semantic code search
+- [ ] File-aware context
+- [ ] Code understanding
+- [ ] Tool calling
+- [ ] Terminal integration
+- [ ] Git integration
+- [ ] Agentic workflows
 
 ## Phase 6 — Production
 
-* [ ] Authentication
-* [ ] Persistent database
-* [ ] Background processing
-* [ ] Streaming responses
-* [ ] Observability
-* [ ] Rate limiting
-* [ ] Secure file handling
-* [ ] Docker deployment
-* [ ] Production CI/CD
+- [ ] Authentication
+- [ ] Persistent database
+- [ ] Background processing
+- [ ] Streaming responses
+- [ ] Observability
+- [ ] Rate limiting
+- [ ] Secure file handling
+- [x] Local Docker Compose deployment
+- [ ] Production CI/CD
 
 ---
 

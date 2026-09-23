@@ -1,14 +1,18 @@
 # Friday API
 
-FastAPI boundary for document ingestion, semantic search, and RAG chat. The current implementation is intentionally provider-neutral and keeps an in-memory document catalog for local UI development.
+FastAPI service for local document ingestion, retrieval, conversations, collections, settings, and Ollama-backed chat. Data is persisted in `FRIDAY_DATA_DIR` (defaults to `./data`) using SQLite; uploaded files are stored in its `uploads` directory.
 
-Run from the repository root:
+Run from the repository root on Windows:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r backend/requirements.txt
-uvicorn backend.app.main:app --reload --port 8000
+Push-Location backend
+uvicorn app.main:app --reload --port 8000
+Pop-Location
 ```
 
-Ollama integration belongs behind `/api/chat` and `/api/search`. The frontend can run independently while the local engine is offline.
+The API is available at `http://localhost:8000`. Interactive documentation is at `http://localhost:8000/docs`, and the health check is `http://localhost:8000/health`.
+
+The backend works without Ollama for browsing, uploads, and lexical retrieval. Chat returns a local fallback message until Ollama is available at `OLLAMA_URL`.

@@ -1,18 +1,19 @@
-FROM ubuntu:22.04
-
-RUN apt-get update && apt-get install -y \
-    g++ curl libssl-dev ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN curl -fsSL https://ollama.com/install.sh | sh
-
+FROM node:22-alpine AS dependencies
 WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
+RUN npm run build
 
-RUN g++ -std=c++17 -O2 main.cpp -o db -lpthread -lssl -lcrypto
-
-COPY start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
-EXPOSE 8081
-CMD ["/app/start.sh"]
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+EXPOSE 3000
+CMD ["node", "server.js"]
