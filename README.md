@@ -61,11 +61,16 @@ cd backend
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-SQLite data and uploaded files remain under `data/`, which is ignored by Git.
+Requirements:
+
+- Node.js 20+ and npm
+- Python 3.11+ with a virtual environment
+- Optional local Ollama instance at `http://localhost:11434` for model-backed chat and embeddings
+- SQLite data and uploaded files remain under `data/`, which is ignored by Git
 
 ### Photo-only chat image input
 
-The chat composer includes a dedicated image control that is restricted to photo files. The image picker accepts common image formats, including `png`, `jpg`, `jpeg`, `gif`, `webp`, `bmp`, and `heic/heif`, while rejecting non-image files. The broader document upload flow remains available for PDFs, markdown, text, CSV, and image files as needed.
+The chat composer includes a dedicated image button that is restricted to photo files only. The picker accepts common image formats such as `png`, `jpg`, `jpeg`, `gif`, `webp`, `bmp`, `heic`, and `heif`, and it rejects any non-image selection. The separate document upload flow remains available for PDFs, Markdown, text, CSV, and other supported file types.
 
 ---
 

@@ -111,6 +111,12 @@ function formatSize(bytes: number) {
     : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
+const IMAGE_FILE_PATTERN = /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i;
+
+function isImageFile(file: File) {
+  return file.type.startsWith("image/") || IMAGE_FILE_PATTERN.test(file.name);
+}
+
 function MarkdownCodeBlock({ children }: { children?: ReactNode }) {
   const [copied, setCopied] = useState(false);
   const codeElement = children as ReactElement<{ children?: ReactNode }>;
@@ -510,7 +516,7 @@ export default function Home() {
               ref={imageInput}
               hidden
               type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/heic,image/heif"
+              accept="image/*,.png,.jpg,.jpeg,.gif,.webp,.bmp,.heic,.heif"
               capture="environment"
               multiple
               onChange={(event) => {
@@ -518,14 +524,16 @@ export default function Home() {
                   ? Array.from(event.target.files)
                   : [];
 
-                const imageFiles = selectedFiles.filter(
-                  (file) =>
-                    file.type.startsWith("image/") ||
-                    /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(file.name),
+                const imageFiles = selectedFiles.filter(isImageFile);
+                const hasNonImage = selectedFiles.some(
+                  (file) => !isImageFile(file),
                 );
 
-                if (selectedFiles.length && imageFiles.length === 0) {
-                  setError("Please choose a photo file only.");
+                if (
+                  selectedFiles.length &&
+                  (hasNonImage || imageFiles.length === 0)
+                ) {
+                  setError("Please choose photo files only.");
                   event.target.value = "";
                   return;
                 }
