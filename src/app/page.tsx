@@ -78,9 +78,20 @@ type SettingsData = {
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers ?? {});
+  const hasBody = init?.body !== undefined && !(init.body instanceof FormData);
+
+  if (hasBody && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (!hasBody && headers.has("Content-Type")) {
+    headers.delete("Content-Type");
+  }
+
   const response = await fetch(`${API}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers,
   });
   if (!response.ok)
     throw new Error((await response.text()) || "Request failed");
@@ -231,7 +242,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           question,
-          k: 3,
+          k: settingsData?.top_k ?? 3,
           conversation_id: conversationId,
         }),
       });
@@ -275,17 +286,29 @@ export default function Home() {
       setConversationId(completedConversationId);
       await loadConversations();
     } catch (reason) {
-      setError(
-        reason instanceof Error ? reason.message : "Chat request failed",
-      );
-      setMessages((current) => [
-        ...current,
-        {
-          role: "assistant",
-          content:
-            "I could not reach the Friday API. Check that the backend is running.",
-        },
-      ]);
+      const message =
+        reason instanceof Error ? reason.message : "Chat request failed";
+      setError(message);
+      setMessages((current) => {
+        const previous = [...current];
+        const last = previous[previous.length - 1];
+        if (last && last.role === "assistant" && last.content === "") {
+          previous.splice(previous.length - 1, 1, {
+            role: "assistant",
+            content:
+              "I could not reach the Friday API. Check that the backend is running.",
+          });
+          return previous;
+        }
+        return [
+          ...previous,
+          {
+            role: "assistant",
+            content:
+              "I could not reach the Friday API. Check that the backend is running.",
+          },
+        ];
+      });
     } finally {
       setIsSending(false);
     }
@@ -481,19 +504,34 @@ export default function Home() {
               ref={imageInput}
               hidden
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/heic,image/heif"
+              capture="environment"
               multiple
               onChange={(event) => {
-                const files = event.target.files
+                const selectedFiles = event.target.files
                   ? Array.from(event.target.files)
                   : [];
-                if (files.length) void upload(files);
+
+                const imageFiles = selectedFiles.filter(
+                  (file) =>
+                    file.type.startsWith("image/") ||
+                    /\.(png|jpe?g|gif|webp|bmp|heic|heif)$/i.test(file.name),
+                );
+
+                if (selectedFiles.length && imageFiles.length === 0) {
+                  setError("Please choose a photo file only.");
+                  event.target.value = "";
+                  return;
+                }
+
+                if (imageFiles.length) void upload(imageFiles);
                 event.target.value = "";
               }}
             />
           </section>
           <ContextPanel
             documents={documents}
+            settingsData={settingsData}
             onUpload={() => fileInput.current?.click()}
           />
         </div>
@@ -804,7 +842,10 @@ function SettingsView({
   settingsData?: SettingsData;
   onSaved: (settings: SettingsData) => void;
 }) {
-  const [draft, setDraft] = useState(settingsData);
+  const [draft, setDraft] = useState<SettingsData | undefined>(
+    () => settingsData,
+  );
+
   if (!draft)
     return (
       <div className="data-list">
@@ -813,6 +854,7 @@ function SettingsView({
         </div>
       </div>
     );
+
   async function save() {
     const saved = await api<SettingsData>("/api/settings", {
       method: "PUT",
@@ -820,6 +862,7 @@ function SettingsView({
     });
     onSaved(saved);
   }
+
   return (
     <div className="data-list">
       <div className="settings-card">
@@ -855,6 +898,19 @@ function SettingsView({
           />
         </label>
         <label>
+          Similarity limit
+          <input
+            type="number"
+            min="0"
+            max="2"
+            step="0.1"
+            value={draft.max_distance}
+            onChange={(event) =>
+              setDraft({ ...draft, max_distance: Number(event.target.value) })
+            }
+          />
+        </label>
+        <label>
           Temperature
           <input
             type="number"
@@ -864,6 +920,16 @@ function SettingsView({
             value={draft.temperature}
             onChange={(event) =>
               setDraft({ ...draft, temperature: Number(event.target.value) })
+            }
+          />
+        </label>
+        <label>
+          System prompt
+          <textarea
+            rows={5}
+            value={draft.system_prompt}
+            onChange={(event) =>
+              setDraft({ ...draft, system_prompt: event.target.value })
             }
           />
         </label>
@@ -900,9 +966,11 @@ function Empty({
 
 function ContextPanel({
   documents,
+  settingsData,
   onUpload,
 }: {
   documents: Document[];
+  settingsData?: SettingsData;
   onUpload: () => void;
 }) {
   return (
@@ -938,7 +1006,17 @@ function ContextPanel({
         <div className="section-title">Search settings</div>
         <div className="setting-row">
           <span>Retrieval count</span>
-          <strong>3 chunks</strong>
+          <strong>
+            {settingsData ? `${settingsData.top_k} chunks` : "3 chunks"}
+          </strong>
+        </div>
+        <div className="setting-row">
+          <span>Similarity limit</span>
+          <strong>
+            {settingsData
+              ? `${settingsData.max_distance.toFixed(1)} max`
+              : "2.0 max"}
+          </strong>
         </div>
         <div className="setting-row">
           <span>Storage</span>

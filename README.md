@@ -46,7 +46,26 @@ The supported local setup runs three services:
 - FastAPI backend at `http://localhost:8000`
 - Ollama at `http://localhost:11434` when local AI is enabled
 
-The frontend and backend can be started directly from PowerShell, or together with Docker Compose. SQLite data and uploaded files remain under `data/`, which is ignored by Git.
+Local startup examples:
+
+```powershell
+# Frontend
+npm install
+npm run dev -- --hostname 0.0.0.0 --port 3000
+
+# Backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r backend/requirements.txt
+cd backend
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+SQLite data and uploaded files remain under `data/`, which is ignored by Git.
+
+### Photo-only chat image input
+
+The chat composer includes a dedicated image control that is restricted to photo files. The image picker accepts common image formats, including `png`, `jpg`, `jpeg`, `gif`, `webp`, `bmp`, and `heic/heif`, while rejecting non-image files. The broader document upload flow remains available for PDFs, markdown, text, CSV, and image files as needed.
 
 ---
 
